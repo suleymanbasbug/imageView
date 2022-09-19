@@ -3,21 +3,59 @@ import Label from '@smartface/native/ui/label';
 import { Route, Router } from '@smartface/router';
 import { styleableComponentMixin } from '@smartface/styling-context';
 import { i18n } from '@smartface/i18n';
-
+import axios from 'axios'
 class StyleableLabel extends styleableComponentMixin(Label) {}
 
 export default class Page1 extends Page1Design {
   private disposeables: (() => void)[] = [];
-  lbl: StyleableLabel;
+  access_token:string = '';
   constructor(private router?: Router, private route?: Route) {
     super({});
-    this.lbl = new StyleableLabel();
-    console.log('[page1] constructor');
+  }
+  buildQueryParams = (query: { [key: string]: string | number | boolean }) => {
+    return Object.keys(query).filter(key => query[key]).map((key) => `${key}=${encodeURIComponent(query[key])}`).join('&');
+};
+  login(){
+    const res =  axios(`https://auth-smartapps.smartface.io/auth/realms/selfservice/protocol/openid-connect/token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: this.buildQueryParams({
+                client_id:'selfservice-app',
+                client_secret: '5Gsty1RWb2UIHaWkoDA3SBHnKXbAoJYD',
+                username:'fuat.guzel@smartface.io',
+                password:'12345678',
+                grant_type:'password'
+            })
+        }).then(res=> this.access_token = res.data.access_token).catch(e=>console.log(e))
+        
   }
 
-  setTexts() {
-    this.btnNext.text = i18n.instance.t('nextPage');
-    this.lbl.text = i18n.instance.t('runtimeLabel');
+  defaultHeaders(){
+    return {
+        Authorization: `Bearer ${this.access_token}`,
+        'Content-Type': 'application/json'
+    };
+  }
+
+  setImage (value:string){
+      this.imageView1.loadFromUrl({
+        url: value,
+        headers: this.defaultHeaders(),
+        fade: !this.imageView1.image,
+        useHTTPCacheControl: true,
+        android: {
+            useMemoryCache: false,
+            useDiskCache: false
+        },
+        onSuccess: () => {
+            console.log('onSuccess')
+        },
+        onFailure: () => {
+            console.log('onFailure')
+        }
+      })
   }
 
   /**
@@ -26,12 +64,6 @@ export default class Page1 extends Page1Design {
    */
   onShow() {
     super.onShow();
-    console.log('[page1] onShow');
-    this.disposeables.push(
-      this.btnNext.on('press', () => {
-        this.router.push('page2', { message: i18n.instance.t('helloWorld') });
-      })
-    );
   }
   /**
    * @event onLoad
@@ -39,12 +71,12 @@ export default class Page1 extends Page1Design {
    */
   onLoad() {
     super.onLoad();
-    this.setTexts();
-    console.log('[page1] onLoad');
     this.headerBar.leftItemEnabled = false;
-    this.addChild(this.lbl, 'page1lbl1unique', 'sf-label', (userProps: Record<string, any>) => {
-      return { ...userProps };
-    });
+    //this.login();
+    console.log(this.access_token)
+    setTimeout(() => {
+        this.setImage('https://smartapps-user.smartface.io/user/profile-photo');
+    }, 3000);
   }
 
   onHide(): void {
